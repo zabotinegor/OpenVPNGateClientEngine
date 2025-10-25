@@ -1,12 +1,12 @@
-import com.android.build.gradle.api.ApplicationVariant
+import com.android.build.gradle.api.LibraryVariant
 
 /*
- * Copyright (c) 2012-2016 Arne Schwabe
- * Distributed under the GNU GPL v2 with additional terms. For full terms see the file doc/LICENSE.txt
- */
+* Copyright (c) 2012-2016 Arne Schwabe
+* Distributed under the GNU GPL v2 with additional terms. For full terms see the file doc/LICENSE.txt
+*/
 
 plugins {
-    alias(libs.plugins.android.application)
+    id("com.android.library")
     alias(libs.plugins.kotlin.android)
     id("checkstyle")
 }
@@ -27,8 +27,6 @@ android {
         minSdk = 21
         targetSdk = 36
         //targetSdkPreview = "UpsideDownCake"
-        versionCode = 217
-        versionName = "0.7.62"
         externalNativeBuild {
             cmake {
                 //arguments+= "-DCMAKE_VERBOSE_MAKEFILE=1"
@@ -45,97 +43,27 @@ android {
         }
     }
 
+    flavorDimensions += "version"
+    productFlavors {
+        create("full") {
+            dimension = "version"
+            buildConfigField("boolean", "openvpn3", "true")
+        }
+    }
+
     sourceSets {
         getByName("main") {
             assets.srcDirs("src/main/assets", "build/ovpnassets")
-
-        }
-
-        create("ui") {
-        }
-
-        create("skeleton") {
-        }
-
-        getByName("debug") {
-        }
-
-        getByName("release") {
-        }
-    }
-
-    signingConfigs {
-        create("release") {
-            // ~/.gradle/gradle.properties
-            val keystoreFile: String? by project
-            storeFile = keystoreFile?.let { file(it) }
-            val keystorePassword: String? by project
-            storePassword = keystorePassword
-            val keystoreAliasPassword: String? by project
-            keyPassword = keystoreAliasPassword
-            val keystoreAlias: String? by project
-            keyAlias = keystoreAlias
-            enableV1Signing = true
-            enableV2Signing = true
-        }
-
-        create("releaseOvpn2") {
-            // ~/.gradle/gradle.properties
-            val keystoreO2File: String? by project
-            storeFile = keystoreO2File?.let { file(it) }
-            val keystoreO2Password: String? by project
-            storePassword = keystoreO2Password
-            val keystoreO2AliasPassword: String? by project
-            keyPassword = keystoreO2AliasPassword
-            val keystoreO2Alias: String? by project
-            keyAlias = keystoreO2Alias
-            enableV1Signing = true
-            enableV2Signing = true
-        }
-
-    }
-
-    lint {
-        enable += setOf("BackButton", "EasterEgg", "StopShip", "IconExpectedSize", "GradleDynamicVersion", "NewerVersionAvailable")
-        checkOnly += setOf("ImpliedQuantity", "MissingQuantity")
-        disable += setOf("MissingTranslation", "UnsafeNativeCodeLocation")
-    }
-
-
-    flavorDimensions += listOf("implementation", "ovpnimpl")
-
-    productFlavors {
-        create("ui") {
-            dimension = "implementation"
-        }
-
-        create("skeleton") {
-            dimension = "implementation"
-        }
-
-        create("ovpn23")
-        {
-            dimension = "ovpnimpl"
-            buildConfigField("boolean", "openvpn3", "true")
-        }
-
-        create("ovpn2")
-        {
-            dimension = "ovpnimpl"
-            versionNameSuffix = "-o2"
-            buildConfigField("boolean", "openvpn3", "false")
+            java.srcDirs(
+                "src/main/java",
+                "src/skeleton/java"
+            )
         }
     }
 
     buildTypes {
         getByName("release") {
-            if (project.hasProperty("icsopenvpnDebugSign")) {
-                logger.warn("property icsopenvpnDebugSign set, using debug signing for release")
-                signingConfig = android.signingConfigs.getByName("debug")
-            } else {
-                productFlavors["ovpn23"].signingConfig = signingConfigs.getByName("release")
-                productFlavors["ovpn2"].signingConfig = signingConfigs.getByName("releaseOvpn2")
-            }
+            isMinifyEnabled = false
         }
     }
 
@@ -148,43 +76,9 @@ android {
         jvmTarget = "17"
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
-            isUniversalApk = true
-        }
-    }
-
     packaging {
         jniLibs {
             useLegacyPackaging = true
-        }
-    }
-
-    bundle {
-        codeTransparency {
-            signing {
-                val keystoreTPFile: String? by project
-                storeFile = keystoreTPFile?.let { file(it) }
-                val keystoreTPPassword: String? by project
-                storePassword = keystoreTPPassword
-                val keystoreTPAliasPassword: String? by project
-                keyPassword = keystoreTPAliasPassword
-                val keystoreTPAlias: String? by project
-                keyAlias = keystoreTPAlias
-
-                if (keystoreTPFile?.isEmpty() ?: true)
-                    println("keystoreTPFile not set, disabling transparency signing")
-                if (keystoreTPPassword?.isEmpty() ?: true)
-                    println("keystoreTPPassword not set, disabling transparency signing")
-                if (keystoreTPAliasPassword?.isEmpty() ?: true)
-                    println("keystoreTPAliasPassword not set, disabling transparency signing")
-                if (keystoreTPAlias?.isEmpty() ?: true)
-                    println("keyAlias not set, disabling transparency signing")
-
-            }
         }
     }
 }
@@ -209,10 +103,10 @@ fun registerGenTask(variantName: String, variantDirName: String): File {
             mkdir(genDir)
         }
         commandLine(listOf(swigcmd, "-outdir", genDir, "-outcurrentdir", "-c++", "-java", "-package", "net.openvpn.ovpn3",
-                "-Isrc/main/cpp/openvpn3/client", "-Isrc/main/cpp/openvpn3/",
-                "-DOPENVPN_PLATFORM_ANDROID",
-                "-o", "${genDir}/ovpncli_wrap.cxx", "-oh", "${genDir}/ovpncli_wrap.h",
-                "src/main/cpp/openvpn3/client/ovpncli.i"))
+            "-Isrc/main/cpp/openvpn3/client", "-Isrc/main/cpp/openvpn3/",
+            "-DOPENVPN_PLATFORM_ANDROID",
+            "-o", "${genDir}/ovpncli_wrap.cxx", "-oh", "${genDir}/ovpncli_wrap.h",
+            "src/main/cpp/openvpn3/client/ovpncli.i"))
         inputs.files( "src/main/cpp/openvpn3/client/ovpncli.i")
         outputs.dir( genDir)
 
@@ -220,9 +114,9 @@ fun registerGenTask(variantName: String, variantDirName: String): File {
     return baseDir
 }
 
-android.applicationVariants.all(object : Action<ApplicationVariant> {
-    override fun execute(variant: ApplicationVariant) {
-        val sourceDir = registerGenTask(variant.name, variant.baseName.replace("-", "/"))
+android.libraryVariants.all(object : Action<LibraryVariant> {
+    override fun execute(variant: LibraryVariant) {
+        val sourceDir = registerGenTask(variant.name, variant.name)
         val task = tasks.named("generateOpenVPN3Swig${variant.name}").get()
 
         variant.registerJavaGeneratingTask(task, sourceDir)
@@ -234,32 +128,27 @@ dependencies {
     // https://maven.google.com/web/index.html
     implementation(libs.androidx.annotation)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.material)
+    implementation(libs.androidx.activity)
+    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.cardview)
+    implementation(libs.androidx.viewpager2)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.preference.ktx)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.androidx.security.crypto)
+    implementation(libs.androidx.webkit)
+    implementation(libs.kotlin.stdlib)
+    implementation(libs.mpandroidchart)
+    implementation(libs.square.okhttp)
 
-    uiImplementation(libs.android.view.material)
-    uiImplementation(libs.androidx.activity)
-    uiImplementation(libs.androidx.activity.ktx)
-    uiImplementation(libs.androidx.appcompat)
-    uiImplementation(libs.androidx.cardview)
-    uiImplementation(libs.androidx.viewpager2)
-    uiImplementation(libs.androidx.constraintlayout)
-    uiImplementation(libs.androidx.core.ktx)
-    uiImplementation(libs.androidx.fragment.ktx)
-    uiImplementation(libs.androidx.lifecycle.runtime.ktx)
-    uiImplementation(libs.androidx.lifecycle.viewmodel.ktx)
-    uiImplementation(libs.androidx.preference.ktx)
-    uiImplementation(libs.androidx.recyclerview)
-    uiImplementation(libs.androidx.security.crypto)
-    uiImplementation(libs.androidx.webkit)
-    uiImplementation(libs.kotlin)
-    uiImplementation(libs.mpandroidchart)
-    uiImplementation(libs.square.okhttp)
-
-    testImplementation(libs.androidx.test.core)
+    // Test dependencies
+    testImplementation(libs.androidx.junit)
     testImplementation(libs.junit)
-    testImplementation(libs.kotlin)
     testImplementation(libs.mockito.core)
     testImplementation(libs.robolectric)
 }
-
-fun DependencyHandler.uiImplementation(dependencyNotation: Any): Dependency? =
-    add("uiImplementation", dependencyNotation)
