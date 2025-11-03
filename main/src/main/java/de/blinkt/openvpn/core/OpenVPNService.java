@@ -352,7 +352,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         }
 
         // Check if running on a TV
-        if (runningOnAndroidTV() && !(priority < 0))
+        if (runningOnAndroidTV() && getResources().getBoolean(R.bool.ovpn_show_tv_toasts) && !(priority < 0))
             guiHandler.post(() -> {
                 if (mlastToast != null)
                     mlastToast.cancel();
