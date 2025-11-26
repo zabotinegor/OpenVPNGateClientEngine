@@ -14,6 +14,7 @@ import android.text.TextUtils;
 
 import de.blinkt.openvpn.VpnProfile;
 import de.blinkt.openvpn.core.ConfigParser;
+import de.blinkt.openvpn.core.GlobalPreferences;
 import de.blinkt.openvpn.core.Preferences;
 import de.blinkt.openvpn.core.ProfileManager;
 import de.blinkt.openvpn.core.VpnStatus;
@@ -91,10 +92,13 @@ public class AppRestrictions {
         Bundle restrictions = restrictionsMgr.getApplicationRestrictions();
         parseRestrictionsBundle(c, restrictions);
     }
+
     public void parseRestrictionsBundle(Context c, Bundle restrictions)
     {
-        if (restrictions == null)
+        if (restrictions == null) {
+            GlobalPreferences.setInstance(false, false);
             return;
+        }
 
         String configVersion = restrictions.getString("version", "(not set)");
         try {
@@ -148,25 +152,29 @@ public class AppRestrictions {
     private static void setMiscSettings(Context c, Bundle restrictions) {
         SharedPreferences defaultPrefs = Preferences.getDefaultSharedPreferences(c);
 
-        if(restrictions.containsKey("screenoffpausevpn"))
-        {
-            boolean pauseVPN = restrictions.getBoolean("screenoffpausevpn");
+        applyBooleanDefaultPrefsRestriction(restrictions, "screenoffpausevpn", defaultPrefs, "screenoff");
+        applyBooleanDefaultPrefsRestriction(restrictions, "ignorenetworkstate", defaultPrefs, "ignorenetstate");
+        applyBooleanDefaultPrefsRestriction(restrictions, "restartvpnonboot", defaultPrefs, "restartvpnonboot");
+        applyBooleanDefaultPrefsRestriction(restrictions,"preferencryption", defaultPrefs, "preferencryption" );
+        applyBooleanDefaultPrefsRestriction(restrictions, "netchangereconnect", defaultPrefs, "netchangereconnect");
+
+        boolean minimalUi = restrictions.getBoolean("minimal_ui", false);
+        if (minimalUi && defaultPrefs.getBoolean("showlogwindow", true)){
+            /* always disable showing log window in minimal UI mode */
             SharedPreferences.Editor editor = defaultPrefs.edit();
-            editor.putBoolean("screenoff", pauseVPN);
+            editor.putBoolean("showlogwindow", false);
             editor.apply();
         }
-        if(restrictions.containsKey("ignorenetworkstate"))
-        {
-            boolean ignoreNetworkState = restrictions.getBoolean("ignorenetworkstate");
+
+        boolean forceConnected = restrictions.getBoolean("always_connected", false);
+        GlobalPreferences.setInstance(minimalUi, forceConnected);
+    }
+
+    private static void applyBooleanDefaultPrefsRestriction(Bundle restrictions, String restriction_name, SharedPreferences defaultPrefs, String prefs_name) {
+        if (restrictions.containsKey(restriction_name)) {
+            boolean pauseVPN = restrictions.getBoolean(restriction_name);
             SharedPreferences.Editor editor = defaultPrefs.edit();
-            editor.putBoolean("ignorenetstate", ignoreNetworkState);
-            editor.apply();
-        }
-        if (restrictions.containsKey("restartvpnonboot"))
-        {
-            boolean restartVPNonBoot = restrictions.getBoolean("restartvpnonboot");
-            SharedPreferences.Editor editor = defaultPrefs.edit();
-            editor.putBoolean("restartvpnonboot", restartVPNonBoot);
+            editor.putBoolean(prefs_name, pauseVPN);
             editor.apply();
         }
     }
