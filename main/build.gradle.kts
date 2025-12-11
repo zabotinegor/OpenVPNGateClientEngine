@@ -6,7 +6,7 @@ import com.android.build.gradle.api.LibraryVariant
 */
 
 plugins {
-    id("com.android.library")
+    alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     id("checkstyle")
 }
