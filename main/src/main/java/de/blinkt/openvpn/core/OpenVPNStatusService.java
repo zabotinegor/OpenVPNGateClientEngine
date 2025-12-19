@@ -38,6 +38,17 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
     @Override
     public void onCreate() {
         super.onCreate();
+        StatusSnapshot snapshot = chooseBestSnapshot();
+        if (snapshot != null) {
+            mLastUpdateMessage = new UpdateMessage(
+                    snapshot.state,
+                    snapshot.message,
+                    snapshot.resid,
+                    snapshot.level,
+                    null
+            );
+            mLastUpdateTimestamp = snapshot.timestampMs;
+        }
         VpnStatus.addLogListener(this);
         VpnStatus.addByteCountListener(this);
         VpnStatus.addStateListener(this);
@@ -125,6 +136,19 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
         }
 
         @Override
+        public StatusSnapshot getLastStatusSnapshot() throws RemoteException {
+            StatusSnapshot snapshot = chooseBestSnapshot();
+            if (snapshot != null) {
+                return snapshot;
+            }
+            UpdateMessage um = mLastUpdateMessage;
+            if (um == null || um.level == null) {
+                return null;
+            }
+            return new StatusSnapshot(um.state, um.logmessage, um.resId, um.level, mLastUpdateTimestamp);
+        }
+
+        @Override
         public void notifyProfileVersionChanged(String uuid, int version) throws RemoteException {
             ProfileManager.notifyProfileVersionChanged(OpenVPNStatusService.this, uuid, version);
         }
@@ -144,6 +168,7 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
     }
 
     static UpdateMessage mLastUpdateMessage;
+    static long mLastUpdateTimestamp;
 
     static class UpdateMessage {
         public String state;
@@ -166,6 +191,8 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
     public void updateState(String state, String logmessage, int localizedResId, ConnectionStatus level, Intent intent) {
 
         mLastUpdateMessage = new UpdateMessage(state, logmessage, localizedResId, level, intent);
+        mLastUpdateTimestamp = System.currentTimeMillis();
+        StatusSnapshotStore.save(this, state, logmessage, localizedResId, level, mLastUpdateTimestamp);
         Message msg = mHandler.obtainMessage(SEND_NEW_STATE, mLastUpdateMessage);
         msg.sendToTarget();
     }
@@ -243,5 +270,30 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
     private static void sendUpdate(IStatusCallbacks broadcastItem,
                                    UpdateMessage um) throws RemoteException {
         broadcastItem.updateStateString(um.state, um.logmessage, um.resId, um.level, um.intent);
+    }
+
+    private StatusSnapshot chooseBestSnapshot() {
+        StatusSnapshot live = VpnStatus.getLastStatusSnapshot();
+        if (live != null && isValidLiveSnapshot(live)) {
+            return live;
+        }
+        StatusSnapshot stored = StatusSnapshotStore.load(this);
+        if (stored != null) {
+            return stored;
+        }
+        return live;
+    }
+
+    private boolean isValidLiveSnapshot(StatusSnapshot snapshot) {
+        if (snapshot == null || snapshot.level == null) {
+            return false;
+        }
+        if (snapshot.timestampMs <= 0) {
+            return false;
+        }
+        if ("NOPROCESS".equals(snapshot.state) && snapshot.level == ConnectionStatus.LEVEL_NOTCONNECTED) {
+            return false;
+        }
+        return true;
     }
 }
