@@ -5,6 +5,7 @@ package de.blinkt.openvpn.core;
 import de.blinkt.openvpn.core.IStatusCallbacks;
 import android.os.ParcelFileDescriptor;
 import de.blinkt.openvpn.core.TrafficHistory;
+import de.blinkt.openvpn.core.StatusSnapshot;
 
 
 interface IServiceStatus {
@@ -33,6 +34,8 @@ interface IServiceStatus {
        * Gets the traffic history
        */
        TrafficHistory getTrafficHistory();
+
+       StatusSnapshot getLastStatusSnapshot();
 
        /**
        * Trigger reloading of a saved profile

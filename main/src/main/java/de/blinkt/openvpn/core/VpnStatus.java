@@ -39,6 +39,8 @@ public class VpnStatus {
 
     private static Intent mLastIntent = null;
 
+    private static long mLastStateTimestamp = 0L;
+
     private static HandlerThread mHandlerThread;
 
     private static String mLastConnectedVPNUUID;
@@ -400,12 +402,20 @@ public class VpnStatus {
         mLastStateresid = resid;
         mLastLevel = level;
         mLastIntent = intent;
+        mLastStateTimestamp = System.currentTimeMillis();
 
 
         for (StateListener sl : stateListener) {
             sl.updateState(state, msg, resid, level, intent);
         }
         //newLogItem(new LogItem((LogLevel.DEBUG), String.format("New OpenVPN Status (%s->%s): %s",state,level.toString(),msg)));
+    }
+
+    public synchronized static StatusSnapshot getLastStatusSnapshot() {
+        if (mLastLevel == null) {
+            return null;
+        }
+        return new StatusSnapshot(mLaststate, mLaststatemsg, mLastStateresid, mLastLevel, mLastStateTimestamp);
     }
 
     public static void logInfo(String message) {

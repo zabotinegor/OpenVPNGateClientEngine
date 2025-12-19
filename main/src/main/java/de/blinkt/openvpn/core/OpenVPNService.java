@@ -1333,6 +1333,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         // If the process is not running, ignore any state,
         // Notification should be invisible in this state
 
+        StatusSnapshotStore.save(this, state, logmessage, resid, level, System.currentTimeMillis());
         doSendBroadcast(state, level);
         if (mProcessThread == null && !mNotificationAlwaysVisible)
             return;
