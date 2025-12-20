@@ -9,13 +9,15 @@ public class StatusSnapshot implements Parcelable {
     public final int resid;
     public final ConnectionStatus level;
     public final long timestampMs;
+    public final long connectedSinceMs;
 
-    public StatusSnapshot(String state, String message, int resid, ConnectionStatus level, long timestampMs) {
+    public StatusSnapshot(String state, String message, int resid, ConnectionStatus level, long timestampMs, long connectedSinceMs) {
         this.state = state;
         this.message = message;
         this.resid = resid;
         this.level = level;
         this.timestampMs = timestampMs;
+        this.connectedSinceMs = connectedSinceMs;
     }
 
     protected StatusSnapshot(Parcel in) {
@@ -24,6 +26,7 @@ public class StatusSnapshot implements Parcelable {
         resid = in.readInt();
         level = in.readParcelable(ConnectionStatus.class.getClassLoader());
         timestampMs = in.readLong();
+        connectedSinceMs = in.readLong();
     }
 
     @Override
@@ -33,6 +36,7 @@ public class StatusSnapshot implements Parcelable {
         dest.writeInt(resid);
         dest.writeParcelable(level, flags);
         dest.writeLong(timestampMs);
+        dest.writeLong(connectedSinceMs);
     }
 
     @Override

@@ -1333,7 +1333,6 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         // If the process is not running, ignore any state,
         // Notification should be invisible in this state
 
-        StatusSnapshotStore.save(this, state, logmessage, resid, level, System.currentTimeMillis());
         doSendBroadcast(state, level);
         if (mProcessThread == null && !mNotificationAlwaysVisible)
             return;
@@ -1350,6 +1349,9 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             } else {
                 mDisplayBytecount = false;
             }
+
+            long connectedSince = (level == LEVEL_CONNECTED) ? mConnecttime : 0L;
+            StatusSnapshotStore.save(this, state, logmessage, resid, level, System.currentTimeMillis(), connectedSince);
 
             // Other notifications are shown,
             // This also mean we are no longer connected, ignore bytecount messages until next

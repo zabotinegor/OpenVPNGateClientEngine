@@ -415,7 +415,7 @@ public class VpnStatus {
         if (mLastLevel == null) {
             return null;
         }
-        return new StatusSnapshot(mLaststate, mLaststatemsg, mLastStateresid, mLastLevel, mLastStateTimestamp);
+        return new StatusSnapshot(mLaststate, mLaststatemsg, mLastStateresid, mLastLevel, mLastStateTimestamp, 0L);
     }
 
     public static void logInfo(String message) {

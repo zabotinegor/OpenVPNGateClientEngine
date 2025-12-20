@@ -48,6 +48,7 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
                     null
             );
             mLastUpdateTimestamp = snapshot.timestampMs;
+            mLastConnectedSince = snapshot.connectedSinceMs;
         }
         VpnStatus.addLogListener(this);
         VpnStatus.addByteCountListener(this);
@@ -145,7 +146,7 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
             if (um == null || um.level == null) {
                 return null;
             }
-            return new StatusSnapshot(um.state, um.logmessage, um.resId, um.level, mLastUpdateTimestamp);
+            return new StatusSnapshot(um.state, um.logmessage, um.resId, um.level, mLastUpdateTimestamp, mLastConnectedSince);
         }
 
         @Override
@@ -169,6 +170,7 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
 
     static UpdateMessage mLastUpdateMessage;
     static long mLastUpdateTimestamp;
+    static long mLastConnectedSince;
 
     static class UpdateMessage {
         public String state;
@@ -192,7 +194,14 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
 
         mLastUpdateMessage = new UpdateMessage(state, logmessage, localizedResId, level, intent);
         mLastUpdateTimestamp = System.currentTimeMillis();
-        StatusSnapshotStore.save(this, state, logmessage, localizedResId, level, mLastUpdateTimestamp);
+        if (level == ConnectionStatus.LEVEL_CONNECTED) {
+            if (mLastConnectedSince <= 0L) {
+                mLastConnectedSince = mLastUpdateTimestamp;
+            }
+        } else {
+            mLastConnectedSince = 0L;
+        }
+        StatusSnapshotStore.save(this, state, logmessage, localizedResId, level, mLastUpdateTimestamp, mLastConnectedSince);
         Message msg = mHandler.obtainMessage(SEND_NEW_STATE, mLastUpdateMessage);
         msg.sendToTarget();
     }
@@ -274,10 +283,13 @@ public class OpenVPNStatusService extends Service implements VpnStatus.LogListen
 
     private StatusSnapshot chooseBestSnapshot() {
         StatusSnapshot live = VpnStatus.getLastStatusSnapshot();
+        StatusSnapshot stored = StatusSnapshotStore.load(this);
+        if (stored != null && stored.connectedSinceMs > 0L && (live == null || live.connectedSinceMs <= 0L)) {
+            return stored;
+        }
         if (live != null && isValidLiveSnapshot(live)) {
             return live;
         }
-        StatusSnapshot stored = StatusSnapshotStore.load(this);
         if (stored != null) {
             return stored;
         }
