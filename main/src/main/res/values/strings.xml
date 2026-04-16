@@ -158,8 +158,6 @@
     <string name="speed_waiting">Waiting for state message…</string>
     <string name="converted_profile">imported profile</string>
     <string name="converted_profile_i">imported profile %d</string>
-    <string name="broken_images">Broken Images</string>
-    <string name="broken_images_faq">&lt;p&gt;Official HTC images are known to have a strange routing problem causing traffic not to flow through the tunnel (See also &lt;a href="https://github.com/schwabe/ics-openvpn/issues/18"&gt;Issue 18&lt;/a&gt; in the bug tracker.)&lt;/p&gt;&lt;p&gt;Older official SONY images from Xperia Arc S and Xperia Ray have been reported to be missing the VPNService completely from the image. (See also &lt;a href="https://github.com/schwabe/ics-openvpn/issues/29"&gt;Issue 29&lt;/a&gt; in the bug tracker.)&lt;/p&gt;&lt;p&gt;On custom build images the tun module might be missing or the rights of /dev/tun might be wrong. Some CM9 images need the "Fix ownership" option under "Device specific hacks" enabled.&lt;/p&gt;&lt;p&gt;Most importantly: If your device has a broken Android image, report it to your vendor. The more people who report an issue to the vendor, the more likely they are to fix it.&lt;/p&gt;</string>
     <string name="pkcs12_file_encryption_key">PKCS12 File Encryption Key</string>
     <string name="private_key_password">Private Key Password</string>
     <string name="password">Password</string>
@@ -183,8 +181,6 @@
     <string name="mobile_info">%10$s %9$s running on %3$s %1$s (%2$s), Android %6$s (%7$s) API %4$d, ABI %5$s, (%8$s)</string>
     <string name="error_rsa_sign">Error signing with Android keystore key %1$s: %2$s</string>
     <string name="error_extapp_sign">Error signing with external authenticator app (%3$s): %1$s: %2$s</string>
-    <string name="faq_system_dialogs">The VPN connection warning telling you that this app can intercept all traffic is imposed by the system to prevent abuse of the VPNService API.\nThe VPN connection notification (The key symbol) is also imposed by the Android system to signal an ongoing VPN connection. On some images this notification plays a sound.\nAndroid introduced these system dialogs for your own safety and made sure that they cannot be circumvented. (On some images this unfortunately includes a notification sound)</string>
-    <string name="faq_system_dialogs_title">Connection warning and notification sound</string>
     <string name="translationby">English translation by Arne Schwabe&lt;arne@rfc2549.org&gt;</string>
     <string name="ipdns">IP and DNS</string>
     <string name="basic">Basic</string>
@@ -225,8 +221,6 @@
     <string name="import_config">Import OpenVPN configuration</string>
     <string name="battery_consumption_title">Battery consumption</string>
     <string name="baterry_consumption">In my personal tests the main reason for high battery consumption of OpenVPN are the keepalive packets. Most OpenVPN servers have a configuration directive like \'keepalive 10 60\' which causes the client and server to exchange keepalive packets every ten seconds. &lt;p&gt; While these packets are small and do not use much traffic, they keep the mobile radio network busy and increase the energy consumption. (See also &lt;a href="https://developer.android.com/training/efficient-downloads/efficient-network-access.html#RadioStateMachine"&gt;The Radio State Machine | Android Developers&lt;/a&gt;) &lt;p&gt; This keepalive setting cannot be changed on the client. Only the system administrator of the OpenVPN can change the setting. &lt;p&gt; Unfortunately using a keepalive larger than 60 seconds with UDP can cause some NAT gateways to drop the connection due to an inactivity timeout. Using TCP with a long keep alive timeout works, but tunneling TCP over TCP performs extremely poorly on connections with high packet loss. (See &lt;a href="http://sites.inka.de/bigred/devel/tcp-tcp.html"&gt;Why TCP Over TCP Is A Bad Idea&lt;/a&gt;)</string>
-    <string name="faq_tethering">The Android Tethering feature (over WiFi, USB or Bluetooth) and the VPNService API (used by this program) do not work together. For more details see the &lt;a href=\"https://github.com/schwabe/ics-openvpn/issues/34\">issue #34&lt;/a></string>
-    <string name="vpn_tethering_title">VPN and Tethering</string>
     <string name="connection_retries">Connection retries</string>
     <string name="reconnection_settings">Reconnection settings</string>
     <string name="connectretrymessage">Number of seconds to wait between connection attempts.</string>
@@ -297,8 +291,6 @@
     <string name="allow_vpn_changes">Allow changes to VPN Profiles</string>
     <string name="hwkeychain">Hardware Keystore:</string>
     <string name="permission_icon_app">Icon of app trying to use OpenVPN for Android</string>
-    <string name="faq_vpndialog43">"Starting with Android 4.3 the VPN confirmation is guarded against \"overlaying apps\". This results in the dialog not reacting to touch input. If you have an app that uses overlays it may cause this behaviour. If you find an offending app contact the author of the app. This problem affect all VPN applications on Android 4.3 and later. See also &lt;a href=\"https://github.com/schwabe/ics-openvpn/issues/185\">Issue 185&lt;a> for additional details"</string>
-    <string name="faq_vpndialog43_title">Vpn Confirmation Dialog</string>
     <string name="donatePlayStore">Alternatively you can send me a donation with the Play Store:</string>
     <string name="thanks_for_donation">Thanks for donating %s!</string>
     <string name="logCleared">Log cleared.</string>
@@ -314,7 +306,6 @@
     <string name="logview_options">View options</string>
     <string name="unhandled_exception">Unhandled exception: %1$s\n\n%2$s</string>
     <string name="unhandled_exception_context">%3$s: %1$s\n\n%2$s</string>
-    <string name="faq_system_dialog_xposed">If you have rooted your Android device you can install the &lt;a href=\"http://xposed.info/\"&gt;Xposed framework&lt;/a&gt; and the &lt;a href=\"http://repo.xposed.info/module/de.blinkt.vpndialogxposed\"&gt;VPN Dialog confirm module&lt;/a&gt; at your own risk"</string>
     <string name="full_licenses">Full licenses</string>
     <string name="blocklocal_summary">Networks directly connected to the local interfaces will not be routed over the VPN. Deselecting this option will redirect all traffic intented for local networks to the VPN.</string>
     <string name="blocklocal_title">Bypass VPN for local networks</string>
@@ -357,27 +348,16 @@
     <string name="faq_androids_clients_title">Differences between the OpenVPN Android clients</string>
     <string name="ignore_multicast_route">Ignoring multicast route: %s</string>
     <string name="ab_only_cidr">Android supports only CIDR routes to the VPN. Since non-CIDR routes are almost never used, OpenVPN for Android will use a /32 for routes that are not CIDR and issue a warning.</string>
-    <string name="ab_tethering_44">Tethering works while the VPN is active. The tethered connection will NOT use the VPN.</string>
-    <string name="ab_kitkat_mss">Early KitKat version set the wrong MSS value on TCP connections (#61948). Try to enable the mssfix option to workaround this bug.</string>
     <string name="ab_proxy">Android will keep using your proxy settings specified for the mobile/Wi-Fi connection when no DNS servers are set. OpenVPN for Android will warn you about this in the log.<p>When a VPN sets a DNS server Android will not use a proxy. There is no API to set a proxy for a VPN connection.</p></string>
     <string name="ab_not_route_to_vpn">The configured client IP and the IPs in its network mask are not routed to the VPN. OpenVPN works around this bug by explicitly adding a route that corrosponds to the client IP and its netmask</string>
-    <string name="ab_persist_tun">Opening a tun device while another tun device is active, which is used for persist-tun support, crashes the VPNServices on the device. A reboot is required to make VPN work again. OpenVPN for Android tries to avoid reopening the tun device and if really needed first closes the current TUN before opening the new TUN device to avoid to crash. This may lead to a short window where packets are sent over the non-VPN connection. Even with this workaround the VPNServices sometimes crashes and requires a reboot of the device.</string>
-    <string name="ab_secondary_users">VPN does not work at all for secondary users.</string>
-    <string name="ab_kitkat_reconnect">"Multiple users report that the mobile connection/mobile data connection is frequently dropped while using the VPN app. The behaviour seems to affect only some mobile provider/device combination and so far no cause/workaround for the bug could be identified. "</string>
-    <string name="ab_vpn_reachability_44">Only destination can be reached over the VPN that are reachable without VPN. IPv6 VPNs does not work at all.</string>
     <string name="ab_only_cidr_title">Non CIDR Routes</string>
     <string name="ab_proxy_title">Proxy behaviour for VPNs</string>
     <string name="version_upto">%s and earlier</string>
     <string name="copy_of_profile">Copy of %s</string>
     <string name="ab_not_route_to_vpn_title">Route to the configured IP address</string>
-    <string name="ab_kitkat_mss_title">Wrong MSS value for VPN connection</string>
-    <string name="ab_secondary_users_title">Secondary tablet users</string>
     <string name="custom_connection_options_warng">Specify custom connection specific options. Use with care</string>
     <string name="custom_connection_options">Custom Options</string>
     <string name="remove_connection_entry">Remove connection entry</string>
-    <string name="ab_kitkat_reconnect_title">Random disconnects from mobile network</string>
-    <string name="ab_vpn_reachability_44_title">Remote networks not reachable</string>
-    <string name="ab_persist_tun_title">Persist tun mode</string>
     <string name="version_and_later">%s and later</string>
     <string name="tls_cipher_alert_title">Connections fails with SSL23_GET_SERVER_HELLO:sslv3 alert handshake failure</string>
     <string name="tls_cipher_alert">Newer OpenVPN for Android versions (0.6.29/March 2015) use a more secure default for the allowed cipher suites (tls-cipher \"DEFAULT:!EXP:!PSK:!SRP:!kRSA\"). Unfortunately, omitting the less secure cipher suites and export cipher suites, especially the omission of cipher suites that do not support Perfect Forward Secrecy (Diffie-Hellman) causes some problems. This usually caused by an well-intentioned but poorly executed attempt to strengthen TLS security by setting tls-cipher on the server or some embedded OSes with stripped down SSL (e.g. MikroTik).\nTo solve this problem the problem, set the tls-cipher settings on the server to reasonable default like tls-cipher \"DEFAULT:!EXP:!PSK:!SRP:!kRSA\". To work around the problem on the client add the custom option tls-cipher DEFAULT on the Android client.</string>

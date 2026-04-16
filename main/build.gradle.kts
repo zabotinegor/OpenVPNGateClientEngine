@@ -7,7 +7,6 @@ import com.android.build.gradle.api.ApplicationVariant
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     id("checkstyle")
 }
 
@@ -27,8 +26,8 @@ android {
         minSdk = 21
         targetSdk = 36
         //targetSdkPreview = "UpsideDownCake"
-        versionCode = 218
-        versionName = "0.7.63"
+        versionCode = 219
+        versionName = "0.7.64"
         externalNativeBuild {
             cmake {
                 //arguments+= "-DCMAKE_VERBOSE_MAKEFILE=1"
@@ -142,10 +141,6 @@ android {
     compileOptions {
         targetCompatibility = JavaVersion.VERSION_17
         sourceCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     splits {

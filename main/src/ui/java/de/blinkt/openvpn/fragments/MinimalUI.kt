@@ -17,8 +17,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.os.RemoteException
 import android.security.KeyChain
-import android.security.KeyChainException
 import android.text.TextUtils
 import android.view.LayoutInflater
 import android.view.Menu
@@ -40,6 +40,7 @@ import de.blinkt.openvpn.R
 import de.blinkt.openvpn.VpnProfile
 import de.blinkt.openvpn.VpnProfile.TYPE_KEYSTORE
 import de.blinkt.openvpn.VpnProfile.TYPE_USERPASS_KEYSTORE
+import de.blinkt.openvpn.activities.BaseActivity
 import de.blinkt.openvpn.activities.ConfigConverter
 import de.blinkt.openvpn.core.ConnectionStatus
 import de.blinkt.openvpn.core.GlobalPreferences
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MinimalUI: Fragment(), VpnStatus.StateListener {
+    private var mLastConnectionLevel: ConnectionStatus = ConnectionStatus.LEVEL_NOTCONNECTED
     private var mPermReceiver: ActivityResultLauncher<String>? = null
     private lateinit var mFileImportReceiver: ActivityResultLauncher<Intent?>
     private lateinit var profileManger: ProfileManager
@@ -170,7 +172,7 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
     }
 
     private fun checkForNotificationPermission(v: View) {
-        val permissionView = v.findViewById<View>(R.id.notification_permission)
+        val permissionView = v.findViewById<View>(R.id.notification_permission) ?: return
 
         val permissionGranted =
             requireActivity().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
@@ -185,7 +187,7 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
     }
 
     private suspend fun checkForKeychainPermission(v: View) {
-        val keychainView = v.findViewById<View>(R.id.keychain_notification)
+        val keychainView = v.findViewById<View>(R.id.keychain_notification) ?: return
 
         val profile = ProfileManager.getAlwaysOnVPN(context)
 
@@ -228,7 +230,7 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
         state: String?,
         logmessage: String?,
         localizedResId: Int,
-        level: ConnectionStatus?,
+        level: ConnectionStatus,
         Intent: Intent?
     ) {
         val cleanLogMessage = VpnStatus.getLastCleanLogMessage(activity, true)
@@ -238,6 +240,7 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
             val connected = level == ConnectionStatus.LEVEL_CONNECTED;
             vpntoggle.isChecked = connected
         }
+        mLastConnectionLevel = level;
     }
 
     override fun setConnectedVPN(uuid: String?) {
@@ -255,6 +258,13 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
         vpntoggle.setOnClickListener { view ->
             toggleSwitchPressed(view as CompoundButton)
         }
+        if ((activity as BaseActivity).isAndroidTV)
+        {
+            with( view.findViewById<TextView>(R.id.minimal_ui_title)) {
+                setOnClickListener { _ -> toggleSwitchPressed(vpntoggle) }
+                visibility = View.VISIBLE;
+            }
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
             checkForNotificationPermission(view)
@@ -262,6 +272,11 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
         viewLifecycleOwner.lifecycleScope.launch {
         checkForKeychainPermission(view)
             }
+        view.setOnKeyListener { v, key, event ->
+            Toast.makeText(activity, "Got key event " + event + " key " + key + " view " + v, Toast.LENGTH_LONG).show();
+            false;
+        }
+
         return view
     }
 
@@ -279,24 +294,28 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
         return false
     }
 
-    fun checkVpnConfigured(): VpnProfile? {
+    suspend fun checkVpnConfigured(): VpnProfile? {
         val alwaysOnVPN = ProfileManager.getAlwaysOnVPN(requireContext())
         if (alwaysOnVPN == null) {
-            Toast.makeText(
-                requireContext(),
-                R.string.cannot_start_vpn_not_configured,
-                Toast.LENGTH_SHORT
-            ).show();
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    requireContext(),
+                    R.string.cannot_start_vpn_not_configured,
+                    Toast.LENGTH_SHORT
+                ).show();
+            }
             return null
         }
 
         if (checkKeychainAccessIsMissing(alwaysOnVPN))
         {
-            Toast.makeText(
-                requireContext(),
-                R.string.keychain_access,
-                Toast.LENGTH_SHORT
-            ).show()
+            withContext(Dispatchers.Main) {
+                Toast.makeText(
+                    requireContext(),
+                    R.string.keychain_access,
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
             return null
         }
         return alwaysOnVPN
@@ -315,6 +334,20 @@ class MinimalUI: Fragment(), VpnStatus.StateListener {
         if (alwaysOnVPN == null)
         {
             view.setChecked(false)
+            return
+        }
+
+        // Figure out if we should disconnect
+        if (!GlobalPreferences.getForceConnected() && mLastConnectionLevel != ConnectionStatus.LEVEL_NOTCONNECTED) {
+            ProfileManager.setConntectedVpnProfileDisconnected(requireContext())
+            val service = mService;
+            if (service != null) {
+                try {
+                    service.stopVPN(false)
+                } catch (e: RemoteException) {
+                    VpnStatus.logException(e)
+                }
+            }
             return
         }
 

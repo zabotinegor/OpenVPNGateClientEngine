@@ -41,6 +41,7 @@ import androidx.fragment.app.ListFragment
 import de.blinkt.openvpn.LaunchVPN
 import de.blinkt.openvpn.R
 import de.blinkt.openvpn.VpnProfile
+import de.blinkt.openvpn.activities.BaseActivity
 import de.blinkt.openvpn.activities.ConfigConverter
 import de.blinkt.openvpn.activities.DisconnectVPN
 import de.blinkt.openvpn.activities.FileSelect
@@ -273,8 +274,9 @@ class VPNProfileList : ListFragment(), View.OnClickListener, StateListener {
 
         if (fab_import != null) fab_import.setOnClickListener(this)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) checkForNotificationPermission(v)
-
+        // TV builds show the minimal UI that already have the notification
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !((activity as BaseActivity).isAndroidTV))
+            checkForNotificationPermission(v)
 
         return v
     }

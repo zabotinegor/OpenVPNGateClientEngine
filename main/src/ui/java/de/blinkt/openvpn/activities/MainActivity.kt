@@ -38,9 +38,10 @@ class MainActivity : BaseActivity() {
         disableToolbarElevation()
 
         val minimalUi = GlobalPreferences.getMinimalUi();
-        if (minimalUi ) {
+        if (isAndroidTV || minimalUi) {
             mPagerAdapter.addTab(R.string.minimal_ui, MinimalUI::class.java)
-        } else {
+        }
+        if (!minimalUi) {
 
             mPagerAdapter.addTab(R.string.vpn_list_title, VPNProfileList::class.java)
             mPagerAdapter.addTab(R.string.graph, GraphFragment::class.java)
