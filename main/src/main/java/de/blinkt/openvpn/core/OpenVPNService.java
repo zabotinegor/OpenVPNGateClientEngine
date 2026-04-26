@@ -67,6 +67,7 @@ import java.util.concurrent.ExecutionException;
 import de.blinkt.openvpn.LaunchVPN;
 import de.blinkt.openvpn.R;
 import de.blinkt.openvpn.VpnProfile;
+import de.blinkt.openvpn.activities.DisconnectVPN;
 import de.blinkt.openvpn.api.ExternalAppDatabase;
 import de.blinkt.openvpn.core.VpnStatus.ByteCountListener;
 import de.blinkt.openvpn.core.VpnStatus.StateListener;
@@ -423,9 +424,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     }
 
     private void addVpnActionsToNotification(Notification.Builder nbuilder) {
-        Intent disconnectVPN = new Intent(this, OpenVPNService.class);
-        disconnectVPN.setAction(DISCONNECT_VPN);
-        PendingIntent disconnectPendingIntent = PendingIntent.getService(this, 0, disconnectVPN, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent disconnectPendingIntent = getDisconnectPendingIntent();
 
         nbuilder.addAction(R.drawable.ic_menu_close_clear_cancel,
                 getString(GlobalPreferences.getForceConnected() ? R.string.reconnect : R.string.cancel_connection), disconnectPendingIntent);
@@ -447,6 +446,18 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             nbuilder.addAction(R.drawable.ic_menu_play,
                     getString(R.string.resumevpn), resumeVPNPending);
         }
+    }
+
+    PendingIntent getDisconnectPendingIntent() {
+        if (GlobalPreferences.getForceConnected()) {
+            Intent reconnectIntent = new Intent(this, DisconnectVPN.class);
+            reconnectIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            return PendingIntent.getActivity(this, 0, reconnectIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        }
+
+        Intent disconnectVPN = new Intent(this, OpenVPNService.class);
+        disconnectVPN.setAction(DISCONNECT_VPN);
+        return PendingIntent.getService(this, 0, disconnectVPN, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
     }
 
     PendingIntent getUserInputIntent(String needed) {

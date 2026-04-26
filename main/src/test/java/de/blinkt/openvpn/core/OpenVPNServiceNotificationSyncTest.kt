@@ -2,6 +2,7 @@ package de.blinkt.openvpn.core
 
 import android.app.PendingIntent
 import android.content.Intent
+import de.blinkt.openvpn.activities.DisconnectVPN
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -66,5 +67,18 @@ class OpenVPNServiceNotificationSyncTest {
         }, 0, 1)
 
         assertNull(Shadows.shadowOf(service).nextStartedActivity)
+    }
+
+    @Test
+    fun disconnectPendingIntentUsesDisconnectActivityWhenForceConnected() {
+        GlobalPreferences.setInstance(false, true, false)
+        val service = Robolectric.buildService(OpenVPNService::class.java).create().get()
+
+        val pendingIntent = ReflectionHelpers.callInstanceMethod<PendingIntent>(service, "getDisconnectPendingIntent")
+        val savedIntent = Shadows.shadowOf(pendingIntent).savedIntent
+
+        assertNotNull(savedIntent)
+        assertEquals(DisconnectVPN::class.java.name, savedIntent.component?.className)
+        assertNull(savedIntent.action)
     }
 }
