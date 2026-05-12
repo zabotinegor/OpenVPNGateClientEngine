@@ -95,6 +95,9 @@ else if (file("/usr/local/bin/swig").exists())
 fun registerGenTask(variantName: String, variantDirName: String): File {
     val baseDir = File(buildDir, "generated/source/ovpn3swig/${variantDirName}")
     val genDir = File(baseDir, "net/openvpn/ovpn3")
+    val swigInterfaceFiles = fileTree("src/main/cpp/openvpn3") {
+        include("**/*.i")
+    }
 
     tasks.register<Exec>("generateOpenVPN3Swig${variantName}")
     {
@@ -107,8 +110,10 @@ fun registerGenTask(variantName: String, variantDirName: String): File {
             "-DOPENVPN_PLATFORM_ANDROID",
             "-o", "${genDir}/ovpncli_wrap.cxx", "-oh", "${genDir}/ovpncli_wrap.h",
             "src/main/cpp/openvpn3/client/ovpncli.i"))
-        inputs.files( "src/main/cpp/openvpn3/client/ovpncli.i")
-        outputs.dir( genDir)
+        inputs.files(swigInterfaceFiles)
+        outputs.dir(genDir)
+        // Enable build cache for SWIG codegen to reuse generated files across builds
+        outputs.cacheIf { true }
 
     }
     return baseDir
