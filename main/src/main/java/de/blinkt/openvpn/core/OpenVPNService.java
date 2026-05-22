@@ -471,9 +471,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     }
 
     PendingIntent getGraphPendingIntent() {
-        Intent openAppIntent = new Intent(this, OpenVPNService.class);
-        openAppIntent.setAction(OPEN_VPN_APP);
-        return PendingIntent.getService(this, 0, openAppIntent, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        return PendingIntent.getActivity(this, 0, getLauncherIntent(), PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
 
     }
 
@@ -489,21 +487,38 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     }
 
     @SuppressWarnings("unchecked")
-    private boolean bringExistingAppTaskToFront() {
+    List<ActivityManager.AppTask> getAppTasks(ActivityManager activityManager)
+            throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        Method getAppTasksMethod = ActivityManager.class.getMethod("getAppTasks");
+        return (List<ActivityManager.AppTask>) getAppTasksMethod.invoke(activityManager);
+    }
+
+    boolean moveAppTaskToFront(ActivityManager.AppTask appTask) {
+        appTask.moveToFront();
+        return true;
+    }
+
+    void launchAppFromNotification(Intent launchIntent) {
+        startActivity(launchIntent);
+    }
+
+    boolean bringExistingAppTaskToFront() {
         ActivityManager activityManager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
         if (activityManager == null) {
+            VpnStatus.logInfo("Notification open: activity manager unavailable");
             return false;
         }
 
         List<ActivityManager.AppTask> appTasks;
         try {
-            Method getAppTasksMethod = ActivityManager.class.getMethod("getAppTasks");
-            appTasks = (List<ActivityManager.AppTask>) getAppTasksMethod.invoke(activityManager);
+            appTasks = getAppTasks(activityManager);
         } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            VpnStatus.logWarning("Notification open: failed to inspect existing tasks: " + e.getClass().getSimpleName());
             return false;
         }
 
         if (appTasks == null || appTasks.isEmpty()) {
+            VpnStatus.logInfo("Notification open: no existing app task found");
             return false;
         }
 
@@ -521,10 +536,19 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
                 continue;
             }
 
-            appTask.moveToFront();
-            return true;
+            try {
+                boolean movedToFront = moveAppTaskToFront(appTask);
+                if (movedToFront) {
+                    VpnStatus.logInfo("Notification open: existing app task moved to front");
+                    return true;
+                }
+            } catch (RuntimeException e) {
+                VpnStatus.logWarning("Notification open: moveToFront failed: " + e.getClass().getSimpleName());
+            }
+            return false;
         }
 
+        VpnStatus.logInfo("Notification open: no matching app task found");
         return false;
     }
 
@@ -533,7 +557,12 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             return;
         }
 
-        startActivity(getLauncherIntent());
+        try {
+            launchAppFromNotification(getLauncherIntent());
+            VpnStatus.logInfo("Notification open: launched app activity");
+        } catch (RuntimeException e) {
+            VpnStatus.logWarning("Notification open: activity launch failed: " + e.getClass().getSimpleName());
+        }
     }
 
     synchronized void registerDeviceStateReceiver(DeviceStateReceiver newDeviceStateReceiver) {
