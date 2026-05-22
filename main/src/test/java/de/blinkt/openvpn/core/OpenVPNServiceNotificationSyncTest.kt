@@ -51,6 +51,7 @@ class OpenVPNServiceNotificationSyncTest {
         assertEquals(Intent.ACTION_MAIN, savedIntent.action)
         assertEquals(service.packageName, savedIntent.`package`)
         assertTrue(savedIntent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
+        assertFalse(savedIntent.flags and Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED != 0)
         assertFalse(savedIntent.component?.className == OpenVPNService::class.java.name)
     }
 
@@ -67,6 +68,7 @@ class OpenVPNServiceNotificationSyncTest {
         assertEquals(Intent.ACTION_MAIN, startedActivity.action)
         assertEquals(service.packageName, startedActivity.`package`)
         assertTrue(startedActivity.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
+        assertFalse(startedActivity.flags and Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED != 0)
     }
 
     @Test
@@ -82,6 +84,7 @@ class OpenVPNServiceNotificationSyncTest {
         assertNotNull(startedActivity)
         assertEquals(Intent.ACTION_MAIN, startedActivity.action)
         assertEquals(service.packageName, startedActivity.`package`)
+        assertFalse(startedActivity.flags and Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED != 0)
     }
 
     @Test

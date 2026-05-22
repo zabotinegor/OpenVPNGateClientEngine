@@ -482,7 +482,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
             launchIntent.setPackage(getPackageName());
         }
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return launchIntent;
     }
 
