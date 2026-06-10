@@ -1527,13 +1527,13 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     }
 
 
-    private Intent getWebAuthIntent(String url, boolean external, Notification.Builder nbuilder)
+    private Intent getWebAuthIntent(String url, Notification.Builder nbuilder)
     {
         int reason = R.string.openurl_requested;
         nbuilder.setContentTitle(getString(reason));
-
         nbuilder.setContentText(url);
-        Intent intent = VariantConfig.getOpenUrlIntent(this, external);
+
+        Intent intent = new Intent(Intent.ACTION_VIEW);
         intent.setData(Uri.parse(url));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         return intent;
@@ -1556,7 +1556,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             case "OPEN_URL": {
                 reason = R.string.openurl_requested;
                 String url = info.split(":", 2)[1];
-                intent = getWebAuthIntent(url, false, nbuilder);
+                intent = getWebAuthIntent(url, nbuilder);
 
                 break;
             }
@@ -1576,8 +1576,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
                         break;
                     }
                 }
-
-                intent = getWebAuthIntent(url, external, nbuilder);
+                intent = getWebAuthIntent(url, nbuilder);
                 break;
             }
             case "CR_TEXT":

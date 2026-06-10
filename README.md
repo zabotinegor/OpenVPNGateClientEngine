@@ -104,7 +104,7 @@ Controlling from external apps
 ------------------------------
 
 There is the AIDL API for real controlling (see developing section). Due to high demand also 
-acitvies to start/stop, pause/resume (like a user would with the notification)  exists
+activities to start/stop, pause/resume (like a user would with the notification)  exists
   
  - `de.blinkt.openvpn.api.DisconnectVPN`
  - `de.blinkt.openvpn.api.ConnectVPN`
@@ -113,7 +113,7 @@ acitvies to start/stop, pause/resume (like a user would with the notification)  
 
 They use `de.blinkt.openvpn.api.profileName` as extra for the name of the VPN profile.
 
-You can use `adb` to to test these intents:
+You can use `adb` to test these intents:
 
     adb -d shell am start -a android.intent.action.MAIN -n de.blinkt.openvpn/.api.ConnectVPN --es de.blinkt.openvpn.api.profileName myvpnprofile
 
@@ -123,7 +123,7 @@ Note to administrators
 
 You make your life and that of your users easier if you embed the certificates into the .ovpn file. You or the users can mail the .ovpn as a attachment to the phone and directly import and use it. Also downloading and importing the file works. The MIME Type should be application/x-openvpn-profile. 
 
-Inline files are supported since OpenVPN 2.1rc1 and documented in the  [OpenVPN 2.3 man page](https://community.openvpn.net/openvpn/wiki/Openvpn23ManPage) (under INLINE FILE SUPPORT) 
+Inline files are supported since OpenVPN 2.1rc1 and documented in the  [OpenVPN man page](https://openvpn.net/community-docs/community-articles/openvpn-2-7-manual.html) (under INLINE FILE SUPPORT) 
 
 (Using inline certifaces can also make your life on non-Android platforms easier since you only have one file.)
 
