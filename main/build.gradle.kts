@@ -29,15 +29,15 @@ android {
         buildConfig = true
     }
     namespace = "de.blinkt.openvpn"
-    compileSdk = 36
+    compileSdk = 37
     //compileSdkPreview = "UpsideDownCake"
 
     // Also update runcoverity.sh
     ndkVersion = "29.0.14206865"
 
     defaultConfig {
-        minSdk = 21
-        targetSdk = 36
+        minSdk = 23
+        targetSdk = 37
         //targetSdkPreview = "UpsideDownCake"
         externalNativeBuild {
             cmake {
@@ -177,6 +177,7 @@ dependencies {
 
     // Test dependencies
     testImplementation(libs.androidx.junit)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
     testImplementation(libs.robolectric)
