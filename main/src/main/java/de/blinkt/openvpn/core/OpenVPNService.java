@@ -73,7 +73,15 @@ import de.blinkt.openvpn.core.VpnStatus.ByteCountListener;
 import de.blinkt.openvpn.core.VpnStatus.StateListener;
 
 public class OpenVPNService extends VpnService implements StateListener, Callback, ByteCountListener, IOpenVPNServiceInternal {
+    private static final String TAG = "OpenVPNService";
     public static final String START_SERVICE = "de.blinkt.openvpn.START_SERVICE";
+    /** {@link #forceStopVPN()}: no openvpn process is running; the idle state has been reported. */
+    public static final int FORCE_STOP_NO_SESSION = 0;
+    /** {@link #forceStopVPN()}: process termination requested; wait for LEVEL_NOTCONNECTED. */
+    public static final int FORCE_STOP_REQUESTED = 1;
+    /** {@link #forceStopVPN()}: in-process core without a killable child; only interrupted. */
+    public static final int FORCE_STOP_UNSUPPORTED = 2;
+    private static final long FORCE_KILL_GRACE_MS = 2000;
     public static final String START_SERVICE_STICKY = "de.blinkt.openvpn.START_SERVICE_STICKY";
     public static final String ALWAYS_SHOW_NOTIFICATION = "de.blinkt.openvpn.NOTIFICATION_ALWAYS_VISIBLE";
 
@@ -116,6 +124,8 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     private final Object mProcessLock = new Object();
     private String lastChannel;
     private Thread mProcessThread = null;
+    // Runnable of the live openvpn2 process, replaced together with mProcessThread (under mProcessLock).
+    private OpenVPNThread mCurrentOpenVPNProcess = null;
     private VpnProfile mProfile;
 
     private DeviceStateReceiver mDeviceStateReceiver;
@@ -138,6 +148,11 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         @Override
         public boolean stopVPN(boolean replaceConnection) throws RemoteException {
             return OpenVPNService.this.stopVPN(replaceConnection);
+        }
+
+        @Override
+        public int forceStopVPN() throws RemoteException {
+            return OpenVPNService.this.forceStopVPN();
         }
 
         @Override
@@ -601,8 +616,66 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     public boolean stopVPN(boolean replaceConnection) throws RemoteException {
         if (getManagement() != null)
             return getManagement().stopVPN(replaceConnection);
-        else
-            return false;
+        Log.w(TAG, "stopVPN failed: management_object_missing");
+        return false;
+    }
+
+    /**
+     * Terminates the live openvpn process without using the management channel. Meant for the case
+     * where {@link #stopVPN(boolean)} cannot reach the process (management object missing,
+     * management socket gone, SIGINT could not be written) while the tunnel is still up.
+     * <p>
+     * Non-blocking and idempotent. The result only says that termination was requested; the
+     * caller must wait for {@code LEVEL_NOTCONNECTED}, which is reported when the process thread
+     * observes the process exit. It acts on the process that is current when called and on that
+     * exact process object when it later escalates to SIGKILL, so a session started afterwards is
+     * never affected.
+     */
+    @Override
+    public int forceStopVPN() throws RemoteException {
+        final OpenVPNThread target;
+        final Thread processThread;
+        final boolean noSession;
+        synchronized (mProcessLock) {
+            target = mCurrentOpenVPNProcess;
+            processThread = mProcessThread;
+            noSession = target == null && (processThread == null || !processThread.isAlive())
+                    && !mStarting;
+        }
+        if (noSession) {
+            Log.w(TAG, "forceStopVPN: no_session");
+            // Nothing is running, so whatever state was last reported is stale.
+            VpnStatus.updateStateString("NOPROCESS", "No process running.",
+                    R.string.state_noprocess, ConnectionStatus.LEVEL_NOTCONNECTED);
+            return FORCE_STOP_NO_SESSION;
+        }
+        if (target == null && processThread == null) {
+            Log.w(TAG, "forceStopVPN: session_starting");
+            return FORCE_STOP_NO_SESSION;
+        }
+        if (target == null) {
+            // In-process OpenVPN3 core: no child process to destroy, interruption is all we have.
+            Log.w(TAG, "forceStopVPN: unsupported_core, interrupting thread");
+            processThread.interrupt();
+            return FORCE_STOP_UNSUPPORTED;
+        }
+        boolean signalled = target.requestTermination();
+        Log.w(TAG, "forceStopVPN: sigterm_requested=" + signalled);
+        if (target.reserveForceKill()) {
+            guiHandler.postDelayed(() -> {
+                boolean killed = target.killProcess();
+                Log.w(TAG, "forceStopVPN: sigkill_escalation killed=" + killed);
+            }, FORCE_KILL_GRACE_MS);
+        }
+        return FORCE_STOP_REQUESTED;
+    }
+
+    /** Called by the process thread of a session when its native process is gone. */
+    void onOpenVPNProcessExited(OpenVPNThread thread) {
+        synchronized (mProcessLock) {
+            if (mCurrentOpenVPNProcess == thread)
+                mCurrentOpenVPNProcess = null;
+        }
     }
 
     @Override
@@ -629,7 +702,9 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
         if (intent != null && DISCONNECT_VPN.equals(intent.getAction())) {
             try {
-                stopVPN(false);
+                // A dead management channel must not turn Disconnect into a no-op.
+                if (!stopVPN(false))
+                    forceStopVPN();
             } catch (RemoteException e) {
                 VpnStatus.logException(e);
             }
@@ -832,6 +907,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
         synchronized (mProcessLock) {
             mProcessThread = new Thread(processThread, "OpenVPNProcessThread");
+            mCurrentOpenVPNProcess = useOpenVPN3 ? null : (OpenVPNThread) processThread;
             mProcessThread.start();
         }
 
@@ -879,12 +955,19 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     public void forceStopOpenVpnProcess() {
         synchronized (mProcessLock) {
             if (mProcessThread != null) {
+                final OpenVPNThread process = mCurrentOpenVPNProcess;
+                // Interrupting only helps once the reader thread wakes up; destroy the process
+                // itself so a session replaced after a failed management stop cannot survive.
+                if (process != null)
+                    process.requestTermination();
                 mProcessThread.interrupt();
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     //ignore
                 }
+                if (process != null)
+                    process.killProcess();
             }
         }
     }
@@ -919,7 +1002,11 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     public void onDestroy() {
         synchronized (mProcessLock) {
             if (mProcessThread != null) {
-                mManagement.stopVPN(true);
+                if (mManagement != null)
+                    mManagement.stopVPN(true);
+                // The management channel may be gone; never leave the process orphaned.
+                if (mCurrentOpenVPNProcess != null)
+                    mCurrentOpenVPNProcess.requestTermination();
             }
         }
 

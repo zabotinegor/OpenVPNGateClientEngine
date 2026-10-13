@@ -26,4 +26,14 @@ interface IOpenVPNServiceInternal {
     boolean isAllowedExternalApp(String packagename);
 
     void challengeResponse(String repsonse);
+
+    /**
+     * Terminates the native OpenVPN process without using the management channel. Intended as
+     * the escalation when {@link #stopVPN} returned false although the tunnel is still up.
+     * Non-blocking and idempotent; completion is reported as LEVEL_NOTCONNECTED.
+     * Appended last so the existing transaction codes are unchanged.
+     *
+     * @return 0 no process was running, 1 termination requested, 2 not supported by this core
+     */
+    int forceStopVPN();
 }

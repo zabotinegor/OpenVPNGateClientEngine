@@ -51,6 +51,10 @@ public class OpenVPNThread implements Runnable {
     private OpenVPNService mService;
     private String mDumpPath;
     private boolean mNoProcessExitStatus = false;
+    // Guards mProcess publication against a termination request racing the process start.
+    private final Object mTerminateLock = new Object();
+    private boolean mTerminateRequested = false;
+    private boolean mForceKillScheduled = false;
 
     public OpenVPNThread(OpenVPNService service, String[] argv, String nativelibdir, String tmpdir) {
         mArgv = argv;
@@ -62,6 +66,88 @@ public class OpenVPNThread implements Runnable {
 
     public void stopProcess() {
         mProcess.destroy();
+    }
+
+    /**
+     * Terminates the native openvpn process without relying on the management socket.
+     * <p>
+     * Idempotent and non-blocking. Unlike {@link Thread#interrupt()} this does not depend on the
+     * process thread leaving its blocking {@code readLine()}; destroying the process closes its
+     * stdout, which lets that read return and the thread run its normal exit path (which reports
+     * {@code LEVEL_NOTCONNECTED}). If the process is not started yet, it is destroyed as soon as it is.
+     *
+     * @return true if a live (or about to start) process has been signalled, false if the process
+     * has already exited
+     */
+    boolean requestTermination() {
+        synchronized (mTerminateLock) {
+            mTerminateRequested = true;
+            Process process = mProcess;
+            if (process == null)
+                return true;
+            if (!isAlive(process))
+                return false;
+            process.destroy();
+            return true;
+        }
+    }
+
+    /**
+     * Reserves the single escalation to {@link #killProcess()} for this process instance.
+     *
+     * @return true for the first caller only
+     */
+    boolean reserveForceKill() {
+        synchronized (mTerminateLock) {
+            if (mForceKillScheduled)
+                return false;
+            mForceKillScheduled = true;
+            return true;
+        }
+    }
+
+    /**
+     * Escalation after {@link #requestTermination()}: SIGKILLs this thread's own process if it is
+     * still alive and drops the stdout pipe so the reader cannot stay blocked. It only ever acts on
+     * the process owned by this instance, so a late call can never hit a replacement session.
+     *
+     * @return true if the process was still alive and has been killed
+     */
+    boolean killProcess() {
+        synchronized (mTerminateLock) {
+            Process process = mProcess;
+            if (process == null)
+                return false;
+            boolean wasAlive = isAlive(process);
+            if (wasAlive) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                    process.destroyForcibly();
+                else
+                    process.destroy();
+            }
+            try {
+                process.getInputStream().close();
+            } catch (IOException e) {
+                // Already closed
+            }
+            return wasAlive;
+        }
+    }
+
+    boolean isProcessAlive() {
+        synchronized (mTerminateLock) {
+            Process process = mProcess;
+            return process != null && isAlive(process);
+        }
+    }
+
+    private static boolean isAlive(Process process) {
+        try {
+            process.exitValue();
+            return false;
+        } catch (IllegalThreadStateException e) {
+            return true;
+        }
     }
 
     void setReplaceConnection()
@@ -110,6 +196,7 @@ public class OpenVPNThread implements Runnable {
                 }
             }
 
+            mService.onOpenVPNProcessExited(this);
             if (!mNoProcessExitStatus)
                 mService.openvpnStopped();
             Log.i(TAG, "Exiting");
@@ -131,7 +218,11 @@ public class OpenVPNThread implements Runnable {
 
         pb.redirectErrorStream(true);
         try {
-            mProcess = pb.start();
+            synchronized (mTerminateLock) {
+                mProcess = pb.start();
+                if (mTerminateRequested)
+                    mProcess.destroy();
+            }
             // Close the output, since we don't need it
 
             InputStream in = mProcess.getInputStream();

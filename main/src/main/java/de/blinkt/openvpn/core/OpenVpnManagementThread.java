@@ -101,8 +101,12 @@ public class OpenVpnManagementThread implements Runnable, OpenVPNManagement {
     private static boolean stopOpenVPN() {
         synchronized (active) {
             boolean sendCMD = false;
+            if (active.isEmpty())
+                Log.w(TAG, "stopOpenVPN failed: management_socket_inactive");
             for (OpenVpnManagementThread mt : active) {
                 sendCMD = mt.managmentCommand("signal SIGINT\n");
+                if (!sendCMD)
+                    Log.w(TAG, "stopOpenVPN failed: sigint_write_failed");
                 try {
                     if (mt.mSocket != null)
                         mt.mSocket.close();

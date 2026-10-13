@@ -42,7 +42,8 @@ public class DisconnectVPN extends Activity implements DialogInterface.OnClickLi
             mService = IOpenVPNServiceInternal.Stub.asInterface(service);
             if (disconnectPending) {
                 try {
-                    mService.stopVPN(false);
+                    if (!mService.stopVPN(false))
+                        mService.forceStopVPN();
                 } catch (RemoteException e) {
                     VpnStatus.logException(e);
                 }
@@ -97,7 +98,8 @@ public class DisconnectVPN extends Activity implements DialogInterface.OnClickLi
             ProfileManager.setConntectedVpnProfileDisconnected(this);
             if (mService != null) {
                 try {
-                    mService.stopVPN(false);
+                    if (!mService.stopVPN(false))
+                        mService.forceStopVPN();
                 } catch (RemoteException e) {
                     VpnStatus.logException(e);
                 }
