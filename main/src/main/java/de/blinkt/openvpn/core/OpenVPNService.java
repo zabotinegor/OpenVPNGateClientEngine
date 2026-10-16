@@ -131,6 +131,11 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     private DeviceStateReceiver mDeviceStateReceiver;
     private boolean mDisplayBytecount = false;
     private boolean mStarting = false;
+    // Until this time (uptime ms) a start is considered in progress: from the beginning of
+    // startOpenVPN() until the new process thread is published. Time-bounded so an unexpected
+    // exception in between can never leave forceStopVPN() reporting "starting" forever.
+    private static final long START_PENDING_WINDOW_MS = 10_000;
+    private volatile long mStartPendingUntilMs = 0;
     private long mConnecttime;
     private OpenVPNManagement mManagement;
     private final IBinder mBinder = new IOpenVPNServiceInternal.Stub() {
@@ -642,7 +647,8 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         final boolean starting;
         synchronized (mProcessLock) {
             processThread = mProcessThread;
-            starting = mStarting;
+            starting = mStarting
+                    || android.os.SystemClock.elapsedRealtime() < mStartPendingUntilMs;
         }
         final boolean noSession = targets.isEmpty()
                 && (processThread == null || !processThread.isAlive()) && !starting;
@@ -653,7 +659,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
                     R.string.state_noprocess, ConnectionStatus.LEVEL_NOTCONNECTED);
             return FORCE_STOP_NO_SESSION;
         }
-        if (targets.isEmpty() && processThread == null) {
+        if (targets.isEmpty() && (processThread == null || starting)) {
             // A start is in progress and has not created its process yet; claiming "idle" would be
             // a false terminal state.
             Log.w(TAG, "forceStopVPN: session_starting");
@@ -883,6 +889,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
         // Set a flag that we are starting a new VPN
         mStarting = true;
+        mStartPendingUntilMs = android.os.SystemClock.elapsedRealtime() + START_PENDING_WINDOW_MS;
         // Stop the previous session by interrupting the thread.
         stopOldOpenVPNProcess(mManagement, mOpenVPNThread);
         // An old running VPN should now be exited
@@ -901,6 +908,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
                 mManagement = ovpnManagementThread;
                 VpnStatus.logInfo("started Socket Thread");
             } else {
+                mStartPendingUntilMs = 0;
                 endVpnService();
                 return;
             }
@@ -920,6 +928,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             mCurrentOpenVPNProcess = useOpenVPN3 ? null : (OpenVPNThread) processThread;
             mProcessThread.start();
         }
+        mStartPendingUntilMs = 0;
 
         if (!useOpenVPN3) {
             try {
@@ -977,7 +986,8 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             process = mCurrentOpenVPNProcess;
             thread = mProcessThread;
         }
-        if (thread == null)
+        // Nothing left to wait for: the previous session already exited on its own.
+        if (thread == null || (!thread.isAlive() && (process == null || !process.isProcessAlive())))
             return;
         // Interrupting only helps once the reader thread wakes up; destroy the process itself so a
         // session replaced after a failed management stop cannot survive.

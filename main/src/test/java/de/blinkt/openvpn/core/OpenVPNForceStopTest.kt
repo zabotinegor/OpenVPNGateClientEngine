@@ -70,7 +70,10 @@ class OpenVPNForceStopTest {
     @After
     fun tearDown() {
         VpnStatus.removeStateListener(listener)
+        // The registry of live processes is static: leave nothing behind for the next test.
+        OpenVPNThread.liveProcesses().forEach { it.requestTermination(); it.killProcess() }
         started.forEach { it.interrupt() }
+        started.forEach { it.join(5_000) }
     }
 
     /** A child process that stays alive for a minute unless it is terminated. */
@@ -191,6 +194,19 @@ class OpenVPNForceStopTest {
         assertTrue(levels.contains(ConnectionStatus.LEVEL_NOTCONNECTED))
         // A second request after exit is a harmless no-op.
         service.forceStopVPN()
+    }
+
+    @Test
+    fun forceStopVPN_whileASessionIsStarting_doesNotClaimIdle() {
+        val service = newService()
+        ReflectionHelpers.setField(service, "mStartPendingUntilMs", Long.MAX_VALUE / 2)
+        levels.clear()
+
+        assertEquals(OpenVPNService.FORCE_STOP_UNSUPPORTED, service.forceStopVPN())
+        assertFalse(
+            "A starting session must not be reported as terminally stopped, got $levels",
+            levels.contains(ConnectionStatus.LEVEL_NOTCONNECTED)
+        )
     }
 
     @Test
