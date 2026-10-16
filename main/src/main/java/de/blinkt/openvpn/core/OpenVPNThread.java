@@ -17,10 +17,14 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,7 +54,11 @@ public class OpenVPNThread implements Runnable {
     private String mTmpDir;
     private OpenVPNService mService;
     private String mDumpPath;
-    private boolean mNoProcessExitStatus = false;
+    private volatile boolean mNoProcessExitStatus = false;
+    // Every openvpn process of this (engine) OS process that has been created and not yet exited.
+    // Static on purpose: a freshly created service instance (after onDestroy / recreation) must
+    // still be able to find and terminate a process started by its predecessor.
+    private static final Set<OpenVPNThread> LIVE = Collections.newSetFromMap(new ConcurrentHashMap<>());
     // Guards mProcess publication against a termination request racing the process start.
     private final Object mTerminateLock = new Object();
     private boolean mTerminateRequested = false;
@@ -62,6 +70,12 @@ public class OpenVPNThread implements Runnable {
         mTmpDir = tmpdir;
         mService = service;
         mStreamFuture = new FutureTask<>(() -> mOutputStream);
+        LIVE.add(this);
+    }
+
+    /** Snapshot of all openvpn processes of this engine process that have not exited yet. */
+    static List<OpenVPNThread> liveProcesses() {
+        return new ArrayList<>(LIVE);
     }
 
     public void stopProcess() {
@@ -196,6 +210,7 @@ public class OpenVPNThread implements Runnable {
                 }
             }
 
+            LIVE.remove(this);
             mService.onOpenVPNProcessExited(this);
             if (!mNoProcessExitStatus)
                 mService.openvpnStopped();

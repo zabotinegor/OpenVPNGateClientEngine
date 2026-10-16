@@ -194,6 +194,53 @@ class OpenVPNForceStopTest {
     }
 
     @Test
+    fun forceStopVPN_onFreshServiceInstanceStillTerminatesAnOrphanedProcess() {
+        val original = newService()
+        val (process, thread) = newProcess(original)
+        // The original service instance is gone (recreated); the process outlived it.
+        val fresh = newService()
+        levels.clear()
+
+        assertEquals(OpenVPNService.FORCE_STOP_REQUESTED, fresh.forceStopVPN())
+
+        waitUntil("orphaned process thread exit") { !thread.isAlive }
+        assertFalse(process.isProcessAlive)
+        assertTrue(levels.contains(ConnectionStatus.LEVEL_NOTCONNECTED))
+    }
+
+    @Test
+    fun onDestroy_terminatesProcessesOwnedByAPredecessorInstance() {
+        val original = newService()
+        val (process, thread) = newProcess(original)
+        val fresh = newService()
+
+        fresh.onDestroy()
+
+        waitUntil("orphaned process thread exit") { !thread.isAlive }
+        assertFalse(process.isProcessAlive)
+    }
+
+    @Test
+    fun replacedProcessIsMarkedSoItsExitDoesNotReportNotConnected() {
+        val service = newService()
+        val (process, thread) = newProcess(service)
+        ReflectionHelpers.setField(service, "mCurrentOpenVPNProcess", process)
+        ReflectionHelpers.setField(service, "mProcessThread", thread)
+        levels.clear()
+
+        // Production replacement path: marks the outgoing process, then terminates it.
+        ReflectionHelpers.callInstanceMethod<Unit>(
+            service, "stopOldOpenVPNProcess",
+            ReflectionHelpers.ClassParameter.from(OpenVPNManagement::class.java, null),
+            ReflectionHelpers.ClassParameter.from(Runnable::class.java, null)
+        )
+
+        waitUntil("process thread exit") { !thread.isAlive }
+        assertFalse(process.isProcessAlive)
+        assertEquals("A replaced session must not publish NOTCONNECTED", 0, service.stopped.get())
+    }
+
+    @Test
     fun staleKillEscalationNeverTouchesAReplacementSession() {
         val service = newService()
         val (oldProcess, oldThread) = newProcess(service)
