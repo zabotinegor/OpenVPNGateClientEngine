@@ -21,7 +21,7 @@ interface IServiceStatus {
         void unregisterStatusCallback(in IStatusCallbacks cb);
 
         /**
-         * Returns the last connedcted VPN
+         * Returns the last connected VPN
          */
         String getLastConnectedVPN();
 

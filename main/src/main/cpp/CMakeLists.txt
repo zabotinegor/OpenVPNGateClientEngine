@@ -60,7 +60,7 @@ if (NOT ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} MATCHES "build/intermediates/cmake/.*s
     #INCLUDE(${SWIG_USE_FILE})
     #SET_SOURCE_FILES_PROPERTIES(openvpn3/javacli/ovpncli.i PROPERTIES SWIG_FLAGS "-package net.openvpn.ovpn3")
     #SET_SOURCE_FILES_PROPERTIES(openvpn3/javacli/ovpncli.i PROPERTIES CPLUSPLUS ON)
-    #SWIG_ADD_MODULE(ovpen3cli java openvpn3/javacli/ovpncli.i)
+    #SWIG_ADD_MODULE(ovpn3cli java openvpn3/javacli/ovpncli.i)
 
 
     set(ovpn3_SRCS
@@ -105,7 +105,7 @@ if (NOT ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} MATCHES "build/intermediates/cmake/.*s
              -DENABLE_EXTERNAL_PKI
             )
 else ()
-    message("Not budiling OpenVPN for output dir ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    message("Not building OpenVPN for output dir ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 endif ()
 
 add_library(ovpnutil SHARED ovpnutil/jniglue.c)
@@ -122,7 +122,7 @@ if (NOT ${CMAKE_LIBRARY_OUTPUT_DIRECTORY} MATCHES "build/intermediates/cmake/.*s
     add_library(osslspeedtest SHARED ovpnutil/sslspeed.c)
     target_link_libraries(osslspeedtest log crypto ssl)
 else ()
-    message("Not budiling SSLSpeedTest for output dir ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+    message("Not building SSLSpeedTest for output dir ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 endif ()
 
 set(openvpn_srcs
@@ -131,9 +131,12 @@ set(openvpn_srcs
         src/compat/compat-dirname.c
         src/compat/compat-gettimeofday.c
         src/openvpn/argv.c
+        src/openvpn/acc.c
         src/openvpn/auth_token.c
         src/openvpn/base64.c
         src/openvpn/buffer.c
+        src/openvpn/check_file_access.c
+        src/openvpn/check_file_access.h
         src/openvpn/clinat.c
         src/openvpn/console.c
         src/openvpn/console_builtin.c
@@ -173,6 +176,10 @@ set(openvpn_srcs
         src/openvpn/openvpn.c
         src/openvpn/options.c
         src/openvpn/options_parse.c
+        src/openvpn/options_show.c
+        src/openvpn/options_show.h
+        src/openvpn/options_string.c
+        src/openvpn/options_string.h
         src/openvpn/options_util.c
         src/openvpn/otime.c
         src/openvpn/packet_id.c
@@ -195,6 +202,8 @@ set(openvpn_srcs
         src/openvpn/session_id.c
         src/openvpn/shaper.c
         src/openvpn/sig.c
+        src/openvpn/siphash.c
+        src/openvpn/siphash_reference.c
         src/openvpn/socket.c
         src/openvpn/socket_util.c
         src/openvpn/socks.c

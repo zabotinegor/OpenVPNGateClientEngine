@@ -25,7 +25,7 @@ interface IOpenVPNServiceInternal {
 
     boolean isAllowedExternalApp(String packagename);
 
-    void challengeResponse(String repsonse);
+    void challengeResponse(String response);
 
     /**
      * Terminates the native OpenVPN process without using the management channel. Intended as

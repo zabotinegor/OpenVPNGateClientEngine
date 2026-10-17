@@ -13,7 +13,6 @@ plugins {
     id("checkstyle")
 }
 
-
 fun obtainTestBuildType(): String {
     var result = "debug";
 
@@ -181,4 +180,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
     testImplementation(libs.robolectric)
+    testImplementation(libs.json)
 }
