@@ -286,11 +286,11 @@ class VPNProfileList : ListFragment(), View.OnClickListener, StateListener {
             (requireActivity().checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED)
         mPermissionView.setVisibility(if (permissionGranted) View.GONE else View.VISIBLE)
 
-        mPermissionView.setOnClickListener(View.OnClickListener { view: View? ->
+        mPermissionView.setOnClickListener { view: View? ->
             mPermReceiver.launch(
                 Manifest.permission.POST_NOTIFICATIONS
             )
-        })
+        }
     }
 
     private fun setListAdapter() {

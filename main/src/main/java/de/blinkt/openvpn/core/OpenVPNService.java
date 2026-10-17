@@ -149,8 +149,8 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         }
 
         @Override
-        public void challengeResponse(String repsonse) throws RemoteException {
-            OpenVPNService.this.challengeResponse(repsonse);
+        public void challengeResponse(String response) throws RemoteException {
+            OpenVPNService.this.challengeResponse(response);
         }
 
 
@@ -162,6 +162,8 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     private Runnable mOpenVPNThread;
     private HandlerThread mCommandHandlerThread;
     private Handler mCommandHandler;
+    /* Just use a static member as long as this is stateless */
+    private DPC1Protocol accReceiver = new DPC1Protocol();
 
     // From: http://stackoverflow.com/questions/3758606/how-to-convert-byte-size-into-human-readable-format-in-java
     public static String humanReadableByteCount(long bytes, boolean speed, Resources res) {
@@ -236,8 +238,8 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
     @Override
     public void onRevoke() {
         VpnStatus.logError(R.string.permission_revoked);
-        final OpenVPNManagement managment = mManagement;
-        mCommandHandler.post(() -> managment.stopVPN(false));
+        final OpenVPNManagement management = mManagement;
+        mCommandHandler.post(() -> management.stopVPN(false));
 
         endVpnService();
     }
@@ -272,7 +274,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         VpnStatus.removeByteCountListener(this);
         unregisterDeviceStateReceiver(mDeviceStateReceiver);
         mDeviceStateReceiver = null;
-        ProfileManager.setConntectedVpnProfileDisconnected(this);
+        ProfileManager.setConnectedVpnProfileDisconnected(this);
         mOpenVPNThread = null;
         if (!mStarting) {
             stopForeground(!mNotificationAlwaysVisible);
@@ -300,9 +302,9 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             priority = PRIORITY_DEFAULT;
 
         if (mProfile != null)
-            nbuilder.setContentTitle(getString(R.string.notifcation_title, mProfile.mName));
+            nbuilder.setContentTitle(getString(R.string.notification_title, mProfile.mName));
         else
-            nbuilder.setContentTitle(getString(R.string.notifcation_title_notconnect));
+            nbuilder.setContentTitle(getString(R.string.notification_title_notconnect));
 
         nbuilder.setContentText(msg);
         nbuilder.setOnlyAlertOnce(true);
@@ -493,7 +495,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
                 this.unregisterReceiver(deviceStateReceiver);
             } catch (IllegalArgumentException iae) {
                 // I don't know why  this happens:
-                // java.lang.IllegalArgumentException: Receiver not registered: de.blinkt.openvpn.NetworkSateReceiver@41a61a10
+                // java.lang.IllegalArgumentException: Receiver not registered: de.blinkt.openvpn.NetworkStateReceiver@41a61a10
                 // Ignore for now ...
                 iae.printStackTrace();
             }
@@ -541,11 +543,11 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
 
         // Always show notification here to avoid problem with startForeground timeout
-        VpnStatus.logInfo(R.string.building_configration);
+        VpnStatus.logInfo(R.string.building_configuration);
 
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M  || (!foregroundNotificationVisible())) {
 
-            VpnStatus.updateStateString("VPN_GENERATE_CONFIG", "", R.string.building_configration, ConnectionStatus.LEVEL_START);
+            VpnStatus.updateStateString("VPN_GENERATE_CONFIG", "", R.string.building_configuration, ConnectionStatus.LEVEL_START);
             showNotification(VpnStatus.getLastCleanLogMessage(this),
                     VpnStatus.getLastCleanLogMessage(this), NOTIFICATION_CHANNEL_NEWSTATUS_ID, 0, ConnectionStatus.LEVEL_START, null);
         }
@@ -661,7 +663,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
 
         /* we get an empty start request or explicitly get told to not replace the VPN then ignore
-         * a start request. This avoids OnBootreciver, Always and user quickly clicking to have
+         * a start request. This avoids OnBootReceiver, Always and user quickly clicking to have
          * weird race conditions
          */
         if (mProfile != null && mProfile == vp && (intent == null || noReplaceRequested))
@@ -752,10 +754,10 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
 
 
     private void stopOldOpenVPNProcess(OpenVPNManagement management,
-                                       Runnable mamanagmentThread) {
+                                       Runnable managementThread) {
         if (management != null) {
-            if (mamanagmentThread != null)
-                ((OpenVPNThread) mamanagmentThread).setReplaceConnection();
+            if (managementThread != null)
+                ((OpenVPNThread) managementThread).setReplaceConnection();
             if (management.stopVPN(true)) {
                 // an old was asked to exit, wait 1s
                 try {
@@ -821,7 +823,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
             mDeviceStateReceiver = null;
         }
         mCommandHandlerThread.quit();
-        // Just in case unregister for state
+        // Just in case, unregister for state
         VpnStatus.removeStateListener(this);
         VpnStatus.flushLog();
     }
@@ -832,7 +834,7 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         if (tc == null)
             return "NULL";
         
-        String cfg = "TUNCFG UNQIUE STRING ips:";
+        String cfg = "TUNCFG UNIQUE STRING ips:";
 
         if (tc.mLocalIP != null)
             cfg += tc.mLocalIP.toString();
@@ -1510,5 +1512,23 @@ public class OpenVPNService extends VpnService implements StateListener, Callbac
         int notificationId = channel.hashCode();
 
         mNotificationManager.notify(notificationId, notification);
+    }
+
+    void receiveAccMessage(AccMessage accMessage) {
+        if (!mProfile.mDpc1protocol) {
+            VpnStatus.logInfo("Received app custom control message but support disabled in profile");
+            return;
+        }
+
+        if (accMessage.getProtocol().equals("internal:supported_protocols"))
+        {
+            VpnStatus.logDebug("Server reports following app custom protocols to be supported: " + new String(accMessage.getMessage()));
+            return;
+        }
+
+        AccMessage response = accReceiver.processMessage(accMessage);
+        if (response != null){
+            mManagement.sendAccMessage(response);
+        }
     }
 }

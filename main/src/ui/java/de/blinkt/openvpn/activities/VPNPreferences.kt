@@ -225,4 +225,9 @@ class VPNPreferences : BaseActivity(), VpnStatus.ProfileNotifyListener {
             finish();
         }
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        VpnStatus.removeProfileStateListener(this)
+    }
 }

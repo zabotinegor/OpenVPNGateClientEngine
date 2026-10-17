@@ -9,9 +9,7 @@ import org.gradle.api.tasks.TaskProvider
 
 plugins {
     alias(libs.plugins.android.application)
-    id("checkstyle")
 }
-
 
 fun obtainTestBuildType(): String {
     var result = "debug";
@@ -38,8 +36,8 @@ android {
         minSdk = 23
         targetSdk = 37
         //targetSdkPreview = "UpsideDownCake"
-        versionCode = 219
-        versionName = "0.7.64"
+        versionCode = 224
+        versionName = "0.7.68"
         externalNativeBuild {
             cmake {
                 //arguments+= "-DCMAKE_VERBOSE_MAKEFILE=1"
@@ -70,27 +68,24 @@ android {
     signingConfigs {
         create("release") {
             // ~/.gradle/gradle.properties
-            val keystoreFile: String? by project
+            val keystoreFile: String? = project.findProperty("keystoreFile")?.toString()
             storeFile = keystoreFile?.let { file(it) }
-            val keystorePassword: String? by project
-            storePassword = keystorePassword
-            val keystoreAliasPassword: String? by project
-            keyPassword = keystoreAliasPassword
-            val keystoreAlias: String? by project
-            keyAlias = keystoreAlias
+            storePassword = project.findProperty("keystorePassword")?.toString()
+            keyPassword = project.findProperty("keystoreAliasPassword")?.toString()
+            keyAlias = project.findProperty("keystoreAlias")?.toString()
             enableV1Signing = true
             enableV2Signing = true
         }
 
         create("releaseOvpn2") {
             // ~/.gradle/gradle.properties
-            val keystoreO2File: String? by project
+            val keystoreO2File: String? = project.findProperty("keystoreO2File")?.toString()
             storeFile = keystoreO2File?.let { file(it) }
-            val keystoreO2Password: String? by project
+            val keystoreO2Password: String? = project.findProperty("keystoreO2Password")?.toString()
             storePassword = keystoreO2Password
-            val keystoreO2AliasPassword: String? by project
+            val keystoreO2AliasPassword: String? = project.findProperty("keystoreO2AliasPassword")?.toString()
             keyPassword = keystoreO2AliasPassword
-            val keystoreO2Alias: String? by project
+            val keystoreO2Alias: String? = project.findProperty("keystoreO2Alias")?.toString()
             keyAlias = keystoreO2Alias
             enableV1Signing = true
             enableV2Signing = true
@@ -144,6 +139,16 @@ android {
                 productFlavors["ovpn23"].signingConfig = signingConfigs.getByName("release")
                 productFlavors["ovpn2"].signingConfig = signingConfigs.getByName("releaseOvpn2")
             }
+
+            optimization {
+                enable = false
+            }
+        }
+        getByName("debug")
+        {
+            optimization {
+                enable = false
+            }
         }
     }
 
@@ -154,9 +159,10 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
     }
 
+    /* Disable due to https://issuetracker.google.com/issues/402800800 */
     splits {
         abi {
-            isEnable = true
+            isEnable = false
             reset()
             include("x86", "x86_64", "armeabi-v7a", "arm64-v8a")
             isUniversalApk = true
@@ -172,13 +178,13 @@ android {
     bundle {
         codeTransparency {
             signing {
-                val keystoreTPFile: String? by project
+                val keystoreTPFile: String? = project.findProperty("keystoreTPFile")?.toString()
                 storeFile = keystoreTPFile?.let { file(it) }
-                val keystoreTPPassword: String? by project
+                val keystoreTPPassword: String? = project.findProperty("keystoreTPPassword")?.toString()
                 storePassword = keystoreTPPassword
-                val keystoreTPAliasPassword: String? by project
+                val keystoreTPAliasPassword: String? = project.findProperty("keystoreTPAliasPassword")?.toString()
                 keyPassword = keystoreTPAliasPassword
-                val keystoreTPAlias: String? by project
+                val keystoreTPAlias: String?= project.findProperty("keystoreTPAlias")?.toString()
                 keyAlias = keystoreTPAlias
 
                 if (keystoreTPFile?.isEmpty()
@@ -282,6 +288,7 @@ dependencies {
     testImplementation(libs.kotlin)
     testImplementation(libs.mockito.core)
     testImplementation(libs.robolectric)
+    testImplementation(libs.json)
 }
 
 fun DependencyHandler.uiImplementation(dependencyNotation: Any): Dependency? =
