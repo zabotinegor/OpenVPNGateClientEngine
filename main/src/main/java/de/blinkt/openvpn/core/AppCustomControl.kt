@@ -9,6 +9,7 @@ import android.os.Build
 import org.json.JSONException
 import org.json.JSONObject
 import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 data class AccMessage(val protocol: String, val fragment: Boolean, val message: ByteArray)
 
@@ -16,6 +17,7 @@ public class AppCustomControl {
 
     public companion object {
         @JvmStatic
+        @OptIn(ExperimentalEncodingApi::class)
         public fun parseAccMessage(argument: String): AccMessage {
             // dpc1,0,eyJkcGNfcmVxdW...
             val arguments = argument.split(',', limit = 3)
