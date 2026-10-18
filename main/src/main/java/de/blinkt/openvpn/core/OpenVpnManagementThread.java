@@ -102,13 +102,15 @@ public class OpenVpnManagementThread implements Runnable, OpenVPNManagement {
 
     }
 
+    private static final long STOP_WRITE_TIMEOUT_MS = 2000;
+
     private static boolean stopOpenVPN() {
         synchronized (active) {
             boolean sendCMD = false;
             if (active.isEmpty())
                 Log.w(TAG, "stopOpenVPN failed: management_socket_inactive");
             for (OpenVpnManagementThread mt : active) {
-                sendCMD = mt.managementCommand("signal SIGINT\n");
+                sendCMD = mt.managementCommandBounded("signal SIGINT\n", STOP_WRITE_TIMEOUT_MS);
                 if (!sendCMD)
                     Log.w(TAG, "stopOpenVPN failed: sigint_write_failed");
                 try {
@@ -172,6 +174,30 @@ public class OpenVpnManagementThread implements Runnable, OpenVPNManagement {
             // Ignore socket stack traces
         }
         return false;
+    }
+
+    /**
+     * Like {@link #managementCommand(String)} but never blocks the caller longer than
+     * {@code timeoutMs}. A stopped or hung openvpn process stops draining the socket, the write then
+     * blocks indefinitely, and the caller (a binder thread serving the controller's stop request,
+     * holding the {@code active} monitor) would stall the whole stop flow. On timeout this reports
+     * failure so the caller can escalate; the caller closes the socket, which aborts the stuck write.
+     */
+    private boolean managementCommandBounded(String cmd, long timeoutMs) {
+        final java.util.concurrent.atomic.AtomicBoolean sent = new java.util.concurrent.atomic.AtomicBoolean();
+        Thread writer = new Thread(() -> sent.set(managementCommand(cmd)), "OpenVPNMgmtStopWrite");
+        writer.setDaemon(true);
+        writer.start();
+        try {
+            writer.join(timeoutMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        if (writer.isAlive()) {
+            Log.w(TAG, "stopOpenVPN failed: sigint_write_timeout");
+            return false;
+        }
+        return sent.get();
     }
 
     @Override
