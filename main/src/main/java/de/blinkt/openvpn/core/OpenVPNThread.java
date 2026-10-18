@@ -134,10 +134,20 @@ public class OpenVPNThread implements Runnable {
                 return false;
             boolean wasAlive = isAlive(process);
             if (wasAlive) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
-                    process.destroyForcibly();
-                else
-                    process.destroy();
+                // Process.destroyForcibly() delivers SIGTERM on Android, which a stopped or hung
+                // process never acts on, so signal SIGKILL explicitly when the pid is known.
+                int pid = processPid(process);
+                if (pid > 0) {
+                    android.os.Process.sendSignal(pid, android.os.Process.SIGNAL_KILL);
+                    awaitExit(process, 100);
+                }
+                // Also covers an unreadable pid and a signal that did not take effect.
+                if (isAlive(process)) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+                        process.destroyForcibly();
+                    else
+                        process.destroy();
+                }
             }
             try {
                 process.getInputStream().close();
@@ -145,6 +155,43 @@ public class OpenVPNThread implements Runnable {
                 // Already closed
             }
             return wasAlive;
+        }
+    }
+
+    private static void awaitExit(Process process, long maxMs) {
+        long deadline = System.nanoTime() + maxMs * 1_000_000L;
+        while (isAlive(process) && System.nanoTime() < deadline) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    /** Native pid of a child process, or -1 when it cannot be read on this Android version. */
+    static int processPid(Process process) {
+        try {
+            Object pid = Process.class.getMethod("pid").invoke(process);
+            if (pid instanceof Number)
+                return ((Number) pid).intValue();
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            // API < 33 has no Process.pid(); fall through to the field.
+        }
+        try {
+            java.lang.reflect.Field f = process.getClass().getDeclaredField("pid");
+            f.setAccessible(true);
+            return f.getInt(process);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return -1;
+        }
+    }
+
+    /** Test hook: native pid of the current child process, or -1. */
+    int nativePidForTest() {
+        synchronized (mTerminateLock) {
+            return mProcess == null ? -1 : processPid(mProcess);
         }
     }
 

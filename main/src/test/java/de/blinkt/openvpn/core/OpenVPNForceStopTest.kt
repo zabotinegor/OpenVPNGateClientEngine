@@ -164,6 +164,32 @@ class OpenVPNForceStopTest {
     }
 
     @Test
+    fun processPid_readsTheNativePidOfAChildProcess() {
+        val service = newService()
+        val (process, _) = newProcess(service)
+
+        assertTrue("A live child must expose a positive pid", process.nativePidForTest() > 0)
+    }
+
+    @Test
+    fun killProcess_endsAStoppedProcessThatCannotActOnSigterm() {
+        assumeTrue("needs POSIX kill", !System.getProperty("os.name").orEmpty().lowercase().contains("win"))
+        val service = newService()
+        val (process, thread) = newProcess(service)
+        val pid = process.nativePidForTest()
+        assertEquals(0, ProcessBuilder("kill", "-STOP", pid.toString()).start().waitFor())
+
+        // SIGTERM stays pending on a stopped process, so the first request cannot end it.
+        process.requestTermination()
+        Thread.sleep(300)
+        assertTrue("A stopped process must outlive SIGTERM", process.isProcessAlive)
+
+        assertTrue(process.killProcess())
+        waitUntil("process thread exit") { !thread.isAlive }
+        assertFalse(process.isProcessAlive)
+    }
+
+    @Test
     fun forceStopVPN_withoutAnySession_reportsNoSessionAndNotConnected() {
         val service = newService()
         levels.clear()
